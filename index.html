@@ -1,1 +1,558 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koinot Sarguzashtlari - Bolalar Uchun O'yin</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Segoe UI', sans-serif;
+        }
 
+        body {
+            background: linear-gradient(135deg, #0d1b2a, #1b263b, #415a77);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            color: #ffffff;
+        }
+
+        /* Yulduzli fon animatsiyasi */
+        .stars-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .star {
+            position: absolute;
+            background-color: #ffffff;
+            border-radius: 50%;
+            animation: twinkle var(--duration) infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* O'yin konteyneri */
+        .game-wrapper {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 90%;
+            max-width: 800px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00f0ff;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #ffe600;
+            letter-spacing: 2px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+
+        /* Boshqaruv paneli */
+        .dashboard {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .stat-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-value {
+            color: #00ffcc;
+            font-size: 1.5rem;
+        }
+
+        /* Canvas - O'yin maydoni */
+        #gameCanvas {
+            background: rgba(5, 10, 25, 0.85);
+            border: 4px solid #00f0ff;
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.4);
+            cursor: pointer;
+        }
+
+        /* Ekranlar (Menyu / Game Over) */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 15, 30, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 20px;
+            z-index: 20;
+            transition: all 0.3s ease;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .btn-start {
+            background: linear-gradient(45deg, #ff007f, #ffaa00);
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(255, 0, 127, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 20px;
+        }
+
+        .btn-start:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 25px rgba(255, 0, 127, 0.6);
+        }
+
+        .instructions {
+            text-align: center;
+            margin: 20px 0;
+            line-height: 1.6;
+            font-size: 1.1rem;
+            color: #d1d5db;
+        }
+
+        /* Boshqaruv tugmalari (Mobil qurilmalar uchun) */
+        .mobile-controls {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-ctrl {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid #00f0ff;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            border-radius: 12px;
+            touch-action: manipulation;
+        }
+
+        /* Yutuq bildirgilari */
+        .achievement {
+            position: absolute;
+            top: 20px;
+            background: #ffaa00;
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            animation: bounceIn 0.5s ease;
+            z-index: 30;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: translateY(-50px); opacity: 0; }
+            70% { transform: translateY(10px); }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Yulduzlar fon konteyneri -->
+    <div class="stars-container" id="starsContainer"></div>
+
+    <div class="game-wrapper">
+        <div class="header">
+            <h1>🚀 KOINOT SARGUZASHTLARI 🚀</h1>
+        </div>
+
+        <div class="dashboard">
+            <div class="stat-box">⭐ Ball: <span id="score" class="stat-value">0</span></div>
+            <div class="stat-box">❤️ Jon: <span id="lives" class="stat-value">3</span></div>
+            <div class="stat-box">🏆 Rekord: <span id="highScore" class="stat-value">0</span></div>
+        </div>
+
+        <div style="position: relative;">
+            <canvas id="gameCanvas" width="700" height="450"></canvas>
+
+            <!-- Boshlang'ich menyu -->
+            <div id="startScreen" class="overlay">
+                <h2 style="font-size: 2rem; color: #00f0ff; margin-bottom: 10px;">Xush kelibsiz, Kapitan!</h2>
+                <div class="instructions">
+                    Sizning vazifangiz — kosmik kemangizni boshqarib,<br>
+                    meteoirlardan saqlanish va ularni otib tashlash!<br><br>
+                    <b>Boshqaruv:</b> Klaviaturadagi ⬅️ ➡️ tugmalari yoki <b>Sichqoncha</b><br>
+                    <b>O'q uzish:</b> Probel (Space) yoki Sichqonchani bosish
+                </div>
+                <button class="btn-start" onclick="startGame()">O'YINNI BOSHLA</button>
+            </div>
+
+            <!-- Game Over ekrani -->
+            <div id="gameOverScreen" class="overlay hidden">
+                <h2 style="font-size: 2.5rem; color: #ff0055; margin-bottom: 10px;">O'yin Tugadi! 💥</h2>
+                <p style="font-size: 1.3rem; margin-bottom: 10px;">Siz to'plagan ball: <span id="finalScore" style="color: #00ffcc;">0</span></p>
+                <button class="btn-start" onclick="startGame()">QAYTA O'YNASH</button>
+            </div>
+        </div>
+
+        <!-- Mobil boshqaruv -->
+        <div class="mobile-controls">
+            <button class="btn-ctrl" id="btnLeft">⬅️ Chapga</button>
+            <button class="btn-ctrl" id="btnFire">🔥 O'q uzish</button>
+            <button class="btn-ctrl" id="btnRight">O'ngga ➡️</button>
+        </div>
+    </div>
+
+    <script>
+        // Fon yulduzlarini yaratish
+        const starsContainer = document.getElementById('starsContainer');
+        for (let i = 0; i < 70; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.width = Math.random() * 3 + 'px';
+            star.style.height = star.style.width;
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.setProperty('--duration', (Math.random() * 3 + 1) + 's');
+            starsContainer.appendChild(star);
+        }
+
+        // Canvas va O'yin Mantiqi
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Elementlar
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const highScoreEl = document.getElementById('highScore');
+        const finalScoreEl = document.getElementById('finalScore');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+
+        // O'yin o'zgaruvchilari
+        let gameActive = false;
+        let score = 0;
+        let lives = 3;
+        let highScore = localStorage.getItem('space_highScore') || 0;
+        highScoreEl.innerText = highScore;
+
+        let player = {
+            x: canvas.width / 2 - 25,
+            y: canvas.height - 60,
+            width: 50,
+            height: 50,
+            speed: 7,
+            dx: 0
+        };
+
+        let bullets = [];
+        let enemies = [];
+        let particles = [];
+        let enemySpawnTimer = 0;
+
+        // Klaviatura hodisalari
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Space' && gameActive) {
+                fireBullet();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Sichqoncha bilan boshqaruv
+        canvas.addEventListener('mousemove', (e) => {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const rootX = e.clientX - rect.left;
+            player.x = rootX - player.width / 2;
+        });
+
+        canvas.addEventListener('click', () => {
+            if (gameActive) fireBullet();
+        });
+
+        // Mobil boshqaruv tugmalari
+        const btnLeft = document.getElementById('btnLeft');
+        const btnRight = document.getElementById('btnRight');
+        const btnFire = document.getElementById('btnFire');
+
+        btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowLeft'] = true; });
+        btnLeft.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowLeft'] = false; });
+        btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowRight'] = true; });
+        btnRight.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowRight'] = false; });
+        btnFire.addEventListener('touchstart', (e) => { e.preventDefault(); if (gameActive) fireBullet(); });
+
+        // O'q uzish
+        function fireBullet() {
+            bullets.push({
+                x: player.x + player.width / 2 - 4,
+                y: player.y,
+                width: 8,
+                height: 15,
+                speed: 9,
+                color: '#00ffcc'
+            });
+        }
+
+        // Meteoritlarni yaratish
+        function spawnEnemy() {
+            const size = Math.random() * 30 + 25;
+            enemies.push({
+                x: Math.random() * (canvas.width - size),
+                y: -size,
+                width: size,
+                height: size,
+                speed: Math.random() * 2 + 2 + (score / 50), // Vaqt o'tishi bilan tezlashadi
+                color: `hsl(${Math.random() * 60 + 10}, 100%, 50%)`,
+                hp: size > 45 ? 2 : 1
+            });
+        }
+
+        // Portlash zarrachalari
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 12; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    dx: (Math.random() - 0.5) * 6,
+                    dy: (Math.random() - 0.5) * 6,
+                    radius: Math.random() * 3 + 1,
+                    color: color,
+                    life: 25
+                });
+            }
+        }
+
+        // O'yinni boshlash
+        function startGame() {
+            score = 0;
+            lives = 3;
+            bullets = [];
+            enemies = [];
+            particles = [];
+            player.x = canvas.width / 2 - 25;
+            
+            scoreEl.innerText = score;
+            livesEl.innerText = lives;
+
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            gameActive = true;
+
+            requestAnimationFrame(update);
+        }
+
+        // O'yinni yakunlash
+        function gameOver() {
+            gameActive = false;
+            finalScoreEl.innerText = score;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('space_highScore', highScore);
+                highScoreEl.innerText = highScore;
+            }
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        // Kosmik kemani chizish
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+
+            // Kema tanasi
+            ctx.fillStyle = '#00f0ff';
+            ctx.beginPath();
+            ctx.moveTo(0, -player.height / 2);
+            ctx.lineTo(player.width / 2, player.height / 2);
+            ctx.lineTo(-player.width / 2, player.height / 2);
+            ctx.closePath();
+            ctx.fill();
+
+            // Oyna
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(0, -2, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Olov animatsiyasi
+            ctx.fillStyle = Math.random() > 0.5 ? '#ffaa00' : '#ff0055';
+            ctx.beginPath();
+            ctx.moveTo(-10, player.height / 2);
+            ctx.lineTo(0, player.height / 2 + 15 + Math.random() * 5);
+            ctx.lineTo(10, player.height / 2);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Meteoritni chizish
+        function drawEnemy(enemy) {
+            ctx.save();
+            ctx.fillStyle = enemy.color;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = enemy.color;
+            ctx.beginPath();
+            ctx.arc(
+                enemy.x + enemy.width / 2, 
+                enemy.y + enemy.height / 2, 
+                enemy.width / 2, 
+                0, 
+                Math.PI * 2
+            );
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Asosiy kadr yangilanishi (Game Loop)
+        function update() {
+            if (!gameActive) return;
+
+            // Maydonni tozalash
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // O'yinchi harakati
+            if ((keys['ArrowLeft'] || keys['KeyA']) && player.x > 0) {
+                player.x -= player.speed;
+            }
+            if ((keys['ArrowRight'] || keys['KeyD']) && player.x < canvas.width - player.width) {
+                player.x += player.speed;
+            }
+
+            // Chegarani tekshirish
+            if (player.x < 0) player.x = 0;
+            if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+
+            drawPlayer();
+
+            // O'qlarni yangilash
+            bullets.forEach((bullet, bIndex) => {
+                bullet.y -= bullet.speed;
+                ctx.fillStyle = bullet.color;
+                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+
+                if (bullet.y < 0) {
+                    bullets.splice(bIndex, 1);
+                }
+            });
+
+            // Meteoritlarni boshqarish
+            enemySpawnTimer++;
+            if (enemySpawnTimer % Math.max(20, 60 - Math.floor(score / 20)) === 0) {
+                spawnEnemy();
+            }
+
+            enemies.forEach((enemy, eIndex) => {
+                enemy.y += enemy.speed;
+                drawEnemy(enemy);
+
+                // O'yinchi bilan dushman toqnashuvi
+                if (
+                    player.x < enemy.x + enemy.width &&
+                    player.x + player.width > enemy.x &&
+                    player.y < enemy.y + enemy.height &&
+                    player.y + player.height > enemy.y
+                ) {
+                    createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.color);
+                    enemies.splice(eIndex, 1);
+                    lives--;
+                    livesEl.innerText = lives;
+
+                    if (lives <= 0) {
+                        gameOver();
+                    }
+                }
+
+                // O'q va dushman toqnashuvi
+                bullets.forEach((bullet, bIndex) => {
+                    if (
+                        bullet.x < enemy.x + enemy.width &&
+                        bullet.x + bullet.width > enemy.x &&
+                        bullet.y < enemy.y + enemy.height &&
+                        bullet.y + bullet.height > enemy.y
+                    ) {
+                        enemy.hp--;
+                        bullets.splice(bIndex, 1);
+
+                        if (enemy.hp <= 0) {
+                            createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.color);
+                            enemies.splice(eIndex, 1);
+                            score += 10;
+                            scoreEl.innerText = score;
+                        }
+                    }
+                });
+
+                // Ekrandan chiqib ketgan dushmanlar
+                if (enemy.y > canvas.height) {
+                    enemies.splice(eIndex, 1);
+                }
+            });
+
+            // Portlash zarrachalari animatsiyasi
+            particles.forEach((p, pIndex) => {
+                p.x += p.dx;
+                p.y += p.dy;
+                p.life--;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (p.life <= 0) {
+                    particles.splice(pIndex, 1);
+                }
+            });
+
+            requestAnimationFrame(update);
+        }
+    </script>
+</body>
+</html>
